@@ -5,7 +5,6 @@ from torchvision import datasets, transforms
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-# Download the MNIST dataset
 transform = transforms.ToTensor()
 train_dataset = datasets.MNIST(root='./data', train=True, download=True,
 transform=transform)
@@ -18,7 +17,6 @@ batch_size=64, shuffle=False)
 
 
 # 1. Create a neural network:
-
 ## a. Initialize 3 layers
 class MyNetwork(nn.Module):
     def __init__(self):
@@ -43,76 +41,52 @@ class MyNetwork(nn.Module):
 
 ## c. Loss function and optimizer:
 ### i. Consider what loss function and optimizer you want to use.
-
-# Initialize the network
 model = MyNetwork()
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=0.01)
 
 ## d. Create the training loop:
-## e. Create the evaluation loop:
+# Training loop
 num_epochs = 5
-loss_values = []
-val_loss_values = []
+losses = []
 
 for epoch in range(num_epochs):
     model.train()
-    running_loss = 0.0
     for data, targets in train_loader:
         optimizer.zero_grad()
         outputs = model(data)
         loss = criterion(outputs, targets)
         loss.backward()
         optimizer.step()
-        running_loss += loss.item()
+        losses.append(loss.item())
+    print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}')
+
+## e. Create the evaluation loop:
+model.eval()
+with torch.no_grad():
+    correct = 0
+    total = 0
+    for images, labels in test_loader:
+        outputs = model(images)
+        _, predicted = torch.max(outputs.data, 1)
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
     
-    avg_training_loss = running_loss / len(train_loader)
-    loss_values.append(avg_training_loss)
-    
-    # Validation loss
-    model.eval()
-    val_running_loss = 0.0
-    with torch.no_grad():
-        for data, targets in test_loader:
-            outputs = model(data)
-            loss = criterion(outputs, targets)
-            val_running_loss += loss.item()
-    
-    avg_val_loss = val_running_loss / len(test_loader)
-    val_loss_values.append(avg_val_loss)
-    
-    print(f'Epoch [{epoch+1}/{num_epochs}], Training Loss: {avg_training_loss:.4f}, Validation Loss: {avg_val_loss:.4f}')
+    accuracy = 100 * correct / total
+    print(f'Test Accuracy: {accuracy:.2f}%')
 
 ## f. Save the model
 PATH = './mymodel.pth'
 torch.save(model.state_dict(), PATH)
 
-# Load the model
-model = MyNetwork()
-model.load_state_dict(torch.load(PATH))
-
-# Evaluate the loaded model
-model.eval()
-correct = 0
-total = 0
-with torch.no_grad():
-    for data, targets in test_loader:
-        outputs = model(data)
-        _, predicted = torch.max(outputs.detach(), dim=1)
-        total += targets.size(0)
-        correct += (predicted == targets).sum().item()
-
-accuracy = 100 * correct / total
-
 # 2. Report your accuracy, is this satisfactory? Why / why not?
 print(f'Accuracy of the loaded model on the 10000 test images: {accuracy:.2f}%')
 
 # 3. Plot the loss curve.
-plt.plot(num_epochs, loss_values, 'bo', label='Training loss')
-plt.plot(num_epochs, val_loss_values, 'b', label='Validation loss')
-plt.title('Training and validation loss')
-plt.xlabel('Epochs')
+plt.figure(figsize=(10,5))
+plt.plot(losses)
+plt.xlabel('Batch Number')
 plt.ylabel('Loss')
-plt.legend()
+plt.title('Loss Curve')
 plt.show()
